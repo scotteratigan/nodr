@@ -1,0 +1,19 @@
+{
+  "name": "nodr",
+  "version": "1.0.0",
+  "description": "Node Client for Simutronics Games",
+  "main": "connect.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scotteratigan/nodr.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/scotteratigan/nodr/issues"
+  },
+  "homepage": "https://github.com/scotteratigan/nodr#readme"
+}

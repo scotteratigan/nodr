@@ -1,0 +1,72 @@
+http://forums.zuggsoft.com/forums/viewtopic.php?p=114652
+
+v2.01 still sends the PLAY command and not the STORM command at login time. Sorry I forgot to fix that, but I'll put it in the next update early next week, unless there is another quick fix this weekend.
+
+http://zuggsoft.com/forums/viewtopic.php?p=113991
+OK, I guess I'm just confused on how MattLofton has it working even with sending "L PLAY" instead of "L STORM". What I might do in 2.0 is check to see if you have "stormfront" set for the GSLClient field, and if so, then it will send "STORM" instead of "PLAY" at connection. I just don't want to mess this up for people who seem to have it working already (like Matt)
+
+Looks like that changed it. The codes that I have documented for 'B' are: 
+
+'EXPIRED' : 'Your trial account has expired.' 
+'NOACCESS' or 'NO_ACCESS' : 'Your account is locked.' 
+'NEED_BILL' : 'Not enough billing info' 
+
+
+The Wiki link that was given above has the last step as simply: 
+Quote:
+Receive a line. This line has some preliminary info and then is the file that should be passed on to the launcher, but with fields delimited by tabs instead of newlines. Find the fields that start with GAMEHOST, GAMEPORT, and KEY, and connect using them.
+
+However, it doesn't specify the details on how you "connect using them". 
+
+My Simutronics documentation specifies that to connect to the host and port, you need to send the following: 
+Code:
+Key CRLF 
+/FE:clienttype /VERSION:version /P:WIN32 CRLF
+
+Where "Key" is the userkey send from the server, and "clienttype" is the type of client (this is the GSL Client value). 
+
+If I use a clienttype of "stormfront" then it just hangs and I never get any more data from the MUD. If I use a clienttype of "storm_front" (or any other value that I tried), then I just get disconnected from the game. 
+
+https://web.archive.org/web/20060728052541/http://www.krakiipedia.org/wiki/SGE_protocol_saved_post
+
+SGE protocol saved post
+Category: Front Ends, Forums and Computer Help
+Topic: StormFront FE Discussions
+Message number: 2722
+Author: GS4-ILDRAN (GM Ildran)
+Date: 12/17/2005 10:50:57 PM
+Subject: Re: The SF Protocol
+IOI: 4
+
+>I'm looking for the SGE stuff, too to be able to skip the copy/paste steps.
+
+Okay, the SGE protocol is a bit complicated. I'm doing this from my poorly commented code, so the details are fuzzy. I also didn't try to figure out what happened if you, for instance, did things in the wrong order or sent invalid data.
+
+First, basically all the communication is done via tab-delimited lines, where the first field is a single letter denoting the operation. So, I'll denote tabs by spaces for ease of reading (thus, "A B C" would really mean "A\tB\tC\n"). Stuff in uppercase is literal stuff to send, stuff in lowercase is symbolic. Here's the steps I take to log in (which work):
+
+Connect to eaccess.play.net, port 7900.
+Send "K".
+Receive a single line, turn it into bytes. This is the password hashing key. It's 32 bytes long.
+For each character pw[i] in the password, compute (pw[i] - 0x20) ^ hashkey[i] + 0x20. I don't honestly know what you're supposed to do if the password is longer than 32 characters, I just reject passwords that long.
+Send "A accountname hashedpassword".
+Receive a line. I just check to see if it includes a substring of "\tKEY\t", and if not, I assume they typed the wrong account or password.
+Send "M".
+Receive a line. It should be formatted as "M instancecode instancename instancecode instancename ...", ie, pairs of instancecode followed by instancename.
+For each instancecode, send "N instancecode". That will give you some information about the instance. The only check I make here is to see if the second field matches ".*[| ]STORM.*", which indicates that the instance supports the SF protocol (some don't, such as the AOH and MO instances). It may also tell you other information, like if the account has access to that instance, but since I have full access to every instance I don't make any further checks.
+At this point, you have the information you need to show the user a list of games they can log into. Once they've selected a game...
+
+Send "F instancecode".
+Receive a line that is a letter (I think it's F, but I just throw it away, heh) followed by a line that indicates the status of the account's subscription to the game. The two error cases I handle are "EXPIRED" and "NEW_TO_GAME". I don't really know what the difference between them is, I just tell the user they don't have a subscription to that game in both cases. Anything else I accept.
+Send "G instancecode".
+Receive a line that has website addresses and stuff for this game. I just throw it away.
+Send "P instancecode"
+Receive a line that has the pricing information and stuff for this game. I throw it away, too.
+Send "C".
+Receive a line of the form "C nc ns x x characterid charactername characterid charactername ...". nc is the number of characters, ns is the number of character slots, x indicates a number that I don't know what it means, and the rest of the line is pairs of characterid and charactername.
+At this point, you present the list of characters to the user to select one. They choose one...
+
+Send "L characterid STORM".
+Receive a line. This line has some preliminary info and then is the file that should be passed on to the launcher, but with fields delimited by tabs instead of newlines. Find the fields that start with GAMEHOST, GAMEPORT, and KEY, and connect using them.
+That should be everything you need to know. Let me know if you have trouble.
+
+- Ildran
