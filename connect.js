@@ -9,10 +9,13 @@ const readline = require("readline").createInterface({
 const client = new net.Socket();
 const getConnectKey = require("./sge");
 let gametime = 0;
+let buffer = "";
 
-getConnectKey(connectKey => {
+getConnectKey((connectKey, ip, port) => {
   console.log("connect.js has received connect key:", connectKey);
-  client.connect(11321, "fallen.dr.game.play.net", function() {
+  // todo: change the connect url depending upon the game instance...
+  // client.connect(11321, "fallen.dr.game.play.net", function() {
+  client.connect(port, ip, function() {
     console.log("Connected, sending KEY".green);
     setTimeout(() => {
       client.write(connectKey + "\n");
@@ -27,8 +30,14 @@ getConnectKey(connectKey => {
 });
 
 client.on("data", data => {
-  // future special cases may process multiple lines at once, but splitting this up for now.
-  const textArr = data.toString().split("\n");
+  // detect incomplete data fragments - if line does not end with \r\n, the data is split and we need to await the next packet before displaying/parsing all the data
+  const tempStr = buffer + data.toString();
+  if (!tempStr.match(/\r\n$/)) {
+    buffer = tempStr;
+    return;
+  }
+  const textArr = tempStr.split(/\r\n/);
+  buffer = "";
   let bold = false;
   textArr.forEach(line => {
     if (line.startsWith("<")) {

@@ -1,15 +1,11 @@
 /*
   based on documentation found here: https://web.archive.org/web/20060728052541/http://www.krakiipedia.org/wiki/SGE_protocol_saved_post
-
   EAccess-Protocol Documentation (amazing):
   https://github.com/WarlockFE/warlock2/wiki/EAccess-Protocol
-
   M:
   M       CS      CyberStrike     DR      DragonRealms    DRD     DragonRealms Development        DRF     DragonRealms The Fallen DRT     DragonRealms Prime Test  DRX     DragonRealms Platinum   GS3     GemStone IV     GS4D    GemStone IV Development GSF     GemStone IV Shattered   GST     GemStone IV Prime Test   GSX     GemStone IV Platinum
-
   P:
   P       CS2     1495    CS.EC   250     CS.EC   200     DR      1495    DR.EC   250     DR.P    2500    DR      1495    DR.EC   250     DR.P    2500     DRF     1995    DRF.EC  250     DR.P    2500    DRT     1495    DRT.EC  250     DRT.P   2500    DRX     1000    DRX.EC  -1      DR.P    2500     GS3     1495    GS3.EC  250     GS3.P   2500    GS3     1495    GS3.EC  250     GS3.P   2500    GSF     -1      GSF.EC  250     GS3.P   2500     GSX     1000    GSX.EC  -1      GS3.P   2500    GSX     1000    GSX.EC  -1      GS3.P   2500
-
   when attempting login, if account is invalid we get this:
   A               NORECORD
   if account is good but password hash is bad we get this:
@@ -22,8 +18,14 @@
 
 function getGameKey(cb) {
   require("dotenv").config();
+  if (!(process.env.ACCOUNT && process.env.PASSWORD && process.env.INSTANCE)) {
+    console.error("Required environment variable not present, aborting.");
+    process.exit(1);
+  }
   const net = require("net");
   let connectKey = null;
+  let connectIP = null;
+  let connectPort = null; // todo: pass these vals instead of making global
   let hashKey = null; // hashKey vals can be 64 <= x <= 127
   const sgeClient = new net.Socket();
   // todo: move everything inside function to avoid polluting global scope
@@ -101,14 +103,17 @@ function getGameKey(cb) {
       desiredCharacterName[0] = desiredCharacterName[0].toUpperCase();
       const charName = desiredCharacterName.join("");
       const slotName = charSlotNames[charName];
-      console.log("charList:", charList);
       console.log("charSlotNames:", charSlotNames);
+      console.log("slotName:", slotName);
       sgeSendStr(`L\t${slotName}\tSTORM\n`);
       return;
     }
+    // Login text: L   OK      UPPORT=5535     GAME=STORM      GAMECODE=DR     FULLGAMENAME=StormFront GAMEFILE=STORMFRONT.EXE GAMEHOST=dr.simutronics.net     GAMEPORT=11324  KEY=a33f64d541ee461cab92a460e149d6d1
     if (text.startsWith("L")) {
       console.log("Login text:", text);
       connectKey = text.match(/KEY=(\S+)/)[1];
+      connectIP = text.match(/GAMEHOST=(\S+)/)[1];
+      connectPort = text.match(/GAMEPORT=(\d+)/)[1];
       console.log("Connect key captured as:", connectKey);
       sgeClient.destroy();
       return;
@@ -132,7 +137,6 @@ function getGameKey(cb) {
     let returnVal = hashNum ^ (pwChar.charCodeAt(0) - 32);
     returnVal += 32;
     return returnVal;
-    // return String.fromCharCode(returnVal);
   }
 
   function sgeSendStr(str) {
@@ -142,7 +146,12 @@ function getGameKey(cb) {
 
   sgeClient.on("close", function() {
     console.log("SGE connection closed.");
-    cb(connectKey);
+    cb(connectKey, connectIP, connectPort);
+  });
+
+  sgeClient.on("error", err => {
+    console.error("Error encountered:");
+    console.error(err);
   });
 }
 
