@@ -89,3 +89,9 @@ spell window:
 harness update:
 <dialogData id='minivitals'><skin id='manaSkin' name='manaBar' controls='mana' left='20%' top='0%' width='20%' height='100%'/><progressBar id='mana' value='89' text='mana 89%' left='20%' customText='t' top='0%' width='20%' height='100%'/></dialogData>
 <prompt time="1569556344">&gt;</prompt>
+
+multiple active spells:
+<clearStream id="percWindow"/>
+<pushStream id="percWindow"/>Swirling Winds  (10 roisaen)
+Ethereal Shield  (5 roisaen)
+<popStream/><prompt time="1569559360">&gt;</prompt>

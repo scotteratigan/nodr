@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>New Window</title>
+  </head>
+  <body>
+    <h1 style="text-align: center;">Simutronics Client</h1>
+    <div id="game-text"></div>
+  </body>
+  <script>
+    const gameTextDiv = document.getElementById("game-text");
+    require("electron").ipcRenderer.on("msg", (event, message) => {
+      // console.log("event:", event);
+      console.log("message:", message);
+      gameTextDiv.appendChild(`<div>${message}</div>`);
+    });
+  </script>
+</html>
