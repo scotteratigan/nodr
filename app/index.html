@@ -7,7 +7,7 @@
     <title>New Window</title>
   </head>
   <body>
-    <h1 style="text-align: center;">Simutronics Client</h1>
+    <!-- <h1 style="text-align: center;">Simutronics Client</h1> -->
     <div id="game-text"></div>
   </body>
   <script>
@@ -15,7 +15,7 @@
     require("electron").ipcRenderer.on("msg", (event, message) => {
       // console.log("event:", event);
       console.log("message:", message);
-      gameTextDiv.appendChild(`<div>${message}</div>`);
+      gameTextDiv.innerHTML += `<div>${message}</div>`;
     });
   </script>
 </html>
