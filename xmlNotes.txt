@@ -1,4 +1,91 @@
+Most matches can be done on a single line. However, there are special cases:
+  * Worn items - spams a long list of worn items
+  * Spell window - multiple lines of active spells
+
+Moving rooms is common and needs performant regex, but you can't be certain about the beginning text:
+<roundTime value='1569558136'/><component id='exp Stealth'><preset id='whisper'>         Stealth:   24 95% dabbling     </preset></component>
+Roundtime: 6 sec.
+You sneak south...
+<nav/>
+
 Room description:
 <style id=""/><preset id='roomDesc'>You are before the Northeast Gate of the Crossing, surrounded by wayfarers and adventurers also in mid-journey.  Above, guardsmen stare down from the thick stone wall that encloses the city, wary for hostile visitors.  Whether they travel to destinations in town or farther west, or to the north and east, they all appear to be seeking something beyond themselves.</preset>  You also see a massive horse-drawn carriage, a weathered roadsign, a bucket of viscous gloop and a narrow footpath.
 Obvious paths: <d>north</d>, <d>east</d>, <d>southeast</d>.
 <compass><dir value="n"/><dir value="e"/><dir value="se"/></compass><prompt time="1569542705">&gt;</prompt>
+
+Monospace font output:
+<output class="mono"/>
+
+----------------------------------------------------------------------------
+   Last login :  Thursday, April 11, 2019 at 16:02:43
+       Logoff :  Thursday, April 11, 2019 at 16:05:37
+----------------------------------------------------------------------------
+
+<output class=""/>
+
+Roomobjs:
+<component id='room objs'>You also see <pushBold/>Guildmaster Gauthus<popBold/>.</component>
+
+Arrival:
+<pushStream id="logons"/> * Zombie Slayer Raidboss joins the adventure.
+<popStream/><prompt time="1569555315">&gt;</prompt>
+
+Perc Window:
+<clearStream id="percWindow"/>
+<pushStream id="percWindow"/>
+<popStream/><prompt time="1569555357">&gt;</prompt>
+
+
+<compass></compass><prompt time="1569555375">&gt;</prompt>
+
+Learning a skill:
+<component id='exp Stealth'><preset id='whisper'>         Stealth:   24 80% dabbling     </preset></component>
+
+When you move, you get double-text, whereas look only returns the second part:
+><nav/>
+<streamWindow id='main' title='Story' subtitle=" - [Warrior Mage Guild, Gauthus' Office]" location='center' target='drop'/>
+<streamWindow id='room' title='Room' subtitle=" - [Warrior Mage Guild, Gauthus' Office]" location='center' target='drop' ifClosed='' resident='true'/>
+<component id='room desc'>A pink marble arch connects the office with the foyer of the guildhall, allowing Gauthus to keep a watchful eye on visitors and apprentices alike from his seat behind a bare pine desk.  Gazing about with impartial interest, a red-banded hawk moves restlessly on her wooden perch, shifting from foot to foot or ruffling her feathers.  High transom windows along the walls provide ventilation and light in what might otherwise be a small, airless room.</component>
+<component id='room objs'>You also see <pushBold/>Guildmaster Gauthus<popBold/>.</component>
+<component id='room players'></component>
+<component id='room exits'>Obvious exits: none.<compass></compass></component>
+<component id='room extra'></component>
+roomName: [Warrior Mage Guild, Gauthus' Office]
+roomDesc: A pink marble arch connects the office with the foyer of the guildhall, allowing Gauthus to keep a watchful eye on visitors and apprentices alike from his seat behind a bare pine desk.  Gazing about with impartial interest, a red-banded hawk moves restlessly on her wooden perch, shifting from foot to foot or ruffling her feathers.  High transom windows along the walls provide ventilation and light in what might otherwise be a small, airless room.</preset>  You also see <pushBold/>Guildmaster Gauthus<popBold/>.
+Obvious exits: none.
+<compass></compass><component id='room players'></component>
+
+
+remove shield/left hand holds item:
+<left exist="1071066" noun="shield">target shield</left>
+
+wear shield/left hand empty:
+<left>Empty</left>
+
+preparing a spell:
+<spell exist='spell'>Ethereal Shield</spell>Since you're not feeding enough power into the spell pattern to make it coherent, you quickly work your way to the minimum required.
+That won't affect your current attunement very much.
+<castTime value='1569556223'/>
+You trace a curving sigil in the air, shaping the pattern of the Ethereal Shield spell.
+<prompt time="1569556197">&gt;</prompt>
+
+cast:
+cast
+<clearStream id="percWindow"/>
+<dialogData id='minivitals'><skin id='manaSkin' name='manaBar' controls='mana' left='20%' top='0%' width='20%' height='100%'/><progressBar id='mana' value='99' text='mana 99%' left='20%' customText='t' top='0%' width='20%' height='100%'/></dialogData>
+<dialogData id='minivitals'><skin id='staminaSkin' name='staminaBar' controls='stamina' left='40%' top='0%' width='20%' height='100%'/><progressBar id='stamina' value='100' text='fatigue 100%' left='40%' customText='t' top='0%' width='20%' height='100%'/></dialogData>
+<dialogData id='minivitals'><progressBar id='concentration' value='100' text='concentration 100%' left='80%' customText='t' top='0%' width='20%' height='100%'/></dialogData>
+<spell>None</spell>You gesture.
+A shimmering ethereal shield surrounds you.
+<pushStream id="percWindow"/>Ethereal Shield  (10 roisaen)
+<popStream/><castTime value='1569556229'/>
+<prompt time="1569556229">&gt;</prompt>
+
+spell window:
+<clearStream id="percWindow"/>
+<pushStream id="percWindow"/>Ethereal Shield  (9 roisaen)
+<popStream/><prompt time="1569556259">&gt;</prompt>
+
+harness update:
+<dialogData id='minivitals'><skin id='manaSkin' name='manaBar' controls='mana' left='20%' top='0%' width='20%' height='100%'/><progressBar id='mana' value='89' text='mana 89%' left='20%' customText='t' top='0%' width='20%' height='100%'/></dialogData>
+<prompt time="1569556344">&gt;</prompt>
