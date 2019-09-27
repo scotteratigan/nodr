@@ -8,13 +8,13 @@ const readline = require("readline").createInterface({
 });
 const client = new net.Socket();
 const getConnectKey = require("./sge");
-let gametime = 0;
+let gameTime = 0;
 let buffer = "";
+let roomName = "";
+let roomDesc = "";
 
 getConnectKey((connectKey, ip, port) => {
   console.log("connect.js has received connect key:", connectKey);
-  // todo: change the connect url depending upon the game instance...
-  // client.connect(11321, "fallen.dr.game.play.net", function() {
   client.connect(port, ip, function() {
     console.log("Connected, sending KEY".green);
     setTimeout(() => {
@@ -36,6 +36,7 @@ client.on("data", data => {
     buffer = tempStr;
     return;
   }
+
   const textArr = tempStr.split(/\r\n/);
   buffer = "";
   let bold = false;
@@ -48,8 +49,31 @@ client.on("data", data => {
         line = line.substring(10);
         bold = false;
       } else if (line.startsWith("<prompt time")) {
-        line = line.match(/"(\d+)"/)[1];
-        gameTime = parseInt(line);
+        // line = line.match(/"(\d+)"/)[1];
+        // todo: try/catch this (add error checking in general)
+        gameTime = parseInt(line.match(/"(\d+)"/)[1]);
+        line = "";
+      } else if (
+        line.match(/^<resource picture="\S+"\/><style id="roomName" \/>.+/)
+      ) {
+        roomName = line.match(
+          /^<resource picture="\S+"\/><style id="roomName" \/>(.+)/
+        )[1];
+        line = "roomName: " + roomName;
+      } else if (line.match(/^<style id=""\/><preset id='roomDesc'>/)) {
+        roomDesc = line
+          .match(/^<style id=""\/><preset id='roomDesc'>(.+)/)[1]
+          .replace(/<d\/?>/g, "");
+        line = "roomDesc: " + roomDesc;
+      } else if (line.match(/^<compass>.*dir value="\w+"/)) {
+        roomExits = line.match(/dir value="(\w+)"/g);
+        // returns array of: 'dir value="blah"'
+        roomExits = roomExits.map(exitStr =>
+          exitStr.substring(10, exitStr.length - 1)
+        );
+        console.log("roomExits:", roomExits); // ['n', 'e', 'se'] <- example values
+        line = "";
+        // line = line.replace(/<d\/?>/g, "");
       }
     }
     console.log(bold ? line.cyan : line);
@@ -59,6 +83,7 @@ client.on("data", data => {
 
 client.on("close", function() {
   console.log("Connection closed");
+  process.exit(0);
 });
 
 function getCommand() {
