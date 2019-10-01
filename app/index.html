@@ -12,8 +12,8 @@
   </body>
   <script>
     const gameTextDiv = document.getElementById("game-text");
-    require("electron").ipcRenderer.on("msg", (event, message) => {
-      // console.log("event:", event);
+    const electron = require("electron");
+    electron.ipcRenderer.on("msg", (event, message) => {
       console.log("message:", message);
       gameTextDiv.innerHTML += `<div>${message}</div>`;
     });
