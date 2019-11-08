@@ -9,13 +9,32 @@
   <body>
     <!-- <h1 style="text-align: center;">Simutronics Client</h1> -->
     <div id="game-text"></div>
+    <input type="text" id="command-input"><button type="button" id="send-command-btn">Send</button>
   </body>
   <script>
     const gameTextDiv = document.getElementById("game-text");
+    const commandInput = document.getElementById("command-input");
+    const sendBtn = document.getElementById("send-command-btn");
     const electron = require("electron");
     electron.ipcRenderer.on("msg", (event, message) => {
       console.log("message:", message);
       gameTextDiv.innerHTML += `<div>${message}</div>`;
     });
+    sendBtn.addEventListener("click", sendCommand);
+
+    function sendCommand() {
+      const command = commandInput.value;
+      console.log('sending command:', command);
+      electron.ipcRenderer.sendSync("synchronous-message", command);
+    }
+
+    const { ipcRenderer } = require('electron')
+    console.log(ipcRenderer.sendSync('synchronous-message', 'ping')) // prints "pong"
+
+    ipcRenderer.on('asynchronous-reply', (event, arg) => {
+      console.log(arg) // prints "pong"
+    })
+    ipcRenderer.send('asynchronous-message', 'ping')
+
   </script>
 </html>
