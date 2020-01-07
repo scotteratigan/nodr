@@ -1,4 +1,5 @@
 "use strict";
+// https://stackoverflow.com/questions/15666144/how-to-remove-module-after-require-in-node-js
 
 const path = require("path");
 const fs = require("fs");
@@ -19,11 +20,13 @@ function loadScript(scriptFileName, sendCommandToGame) {
       }
       const scriptFullPath = path.join(directoryPath, scriptFileName + ".js");
       try {
-        const load = require(scriptFullPath);
+        clearScriptCache();
+        let load = require(scriptFullPath);
         const { run, parseText } = await load(sendCommandToGame);
         console.log("loadscript, parseText:", parseText);
-        run();
-        return resolve(parseText);
+        resolve(parseText);
+        await run();
+        console.log("loadScript script ended");
       } catch (err) {
         console.error("Error running script", scriptFileName, ":", err);
         return reject(() => {});
@@ -33,6 +36,15 @@ function loadScript(scriptFileName, sendCommandToGame) {
 }
 
 module.exports = { loadScript };
+
+function clearScriptCache() {
+  for (const path in require.cache) {
+    if (path.endsWith(".js")) {
+      // only clear *.js, not *.node
+      delete require.cache[path];
+    }
+  }
+}
 
 // let globalParseText = () => {
 //   console.log("loadScript parse text running");

@@ -4,18 +4,25 @@
 
 module.exports = load;
 
-function load(sendTextFn) {
-  async function run() {
-    console.log("test loaded");
-    await pause(10);
-    console.log("test still running");
-    await pause(30);
-    console.log("script ending");
+function load(put) {
+  function run() {
+    return new Promise(async (resolve, reject) => {
+      put("sit");
+      await pause(5);
+      put("appraise my small sack");
+      await pause(8);
+      put("appraise my broadsword");
+      await pause(8);
+      put("exp");
+      return resolve();
+    });
   }
 
   function parseText(str) {
+    if (str.startsWith("You sit down.")) return put("stand");
     console.log("Script detects:", str.substr(0, 10) + "...");
   }
+
   return { run, parseText };
 }
 
@@ -29,6 +36,7 @@ function pause(seconds) {
 }
 
 function rt(rtEndSeconds) {
+  // Need a global RT object for this to work
   return new Promise(async (resolve, reject) => {
     const currTime = new Date();
     // shouldn't need to wait for MS?
