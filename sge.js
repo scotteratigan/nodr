@@ -14,7 +14,8 @@
   A       ACCOUNTNAME  PROBLEM
   */
 
-// todo: check that all required process.env values exist and are valid
+const SGE_URL = "eaccess.play.net";
+const SGE_PORT = 7900;
 
 function getGameKey(cb) {
   require("dotenv").config();
@@ -28,28 +29,35 @@ function getGameKey(cb) {
   let connectPort = null; // todo: pass these vals instead of making global
   let hashKey = null; // hashKey vals can be 64 <= x <= 127
   const sgeClient = new net.Socket();
-  // todo: move everything inside function to avoid polluting global scope
 
-  sgeClient.connect(7900, "eaccess.play.net", () => {
+  sgeClient.connect(SGE_PORT, SGE_URL, res => {
     // todo: add error handling here
-    console.log("Connected, to eaccess.play.net:7900");
+    console.log(`Connected to ${SGE_URL}:${SGE_PORT}`);
     setTimeout(() => {
       sgeSendStr("K\n");
     }, 5);
   });
 
   sgeClient.on("data", data => {
-    console.log("data received:");
-    console.log(data);
+    // try {
+    //   const lines = JSON.stringify([...data]);
+    //   lines.forEach(line => console.log("DATA: ", line));
+    // } catch (err) {
+    //   console.error("Error parsing SGE line.");
+    // }
+    // data.split("\r\n").forEach(line => console.log(line));
+    console.log("typeof data:", typeof data); // object? I think it's a buffer
+    console.log("DATA:", data);
+    // console.log("DATA:", data);
     if (!hashKey) {
       hashKey = [...data];
-      console.log("hash key from Simu:", JSON.stringify(hashKey));
+      console.log("HASH KEY:", JSON.stringify(hashKey));
       setTimeout(() => {
         console.log("Sending authentication string...");
         const hashedPassArr = hashPassword();
-        console.log(`A\t${process.env.ACCOUNT}\t${hashedPassArr}\r\n`);
+        console.log(`SEND: A\t${process.env.ACCOUNT}\t${hashedPassArr}\r\n`);
         sgeClient.write(`A\t${process.env.ACCOUNT}\t`);
-        const buffPW = Buffer.from(hashedPassArr); // this HAS to be written as a buffer because of invalid ASCII values!
+        const buffPW = Buffer.from(hashedPassArr); // must be written as a buffer because of invalid ASCII values!
         sgeClient.write(buffPW);
         sgeClient.write("\r\n");
       }, 5);
@@ -59,14 +67,15 @@ function getGameKey(cb) {
     if (text.startsWith("A")) {
       // A       ACCOUNT KEY     longAlphaNumericString        Subscriber Name
       if (text.includes("KEY")) {
-        console.log("Authentication SUCCESSFUL!");
+        console.log("Authentication Successful!");
         sgeSendStr("M\n");
         return;
       } else {
-        console.error(text);
+        // todo: actually throw error here?
         console.error(
           "Authentication failed. Please check USERNAME and PASSWORD in .env file."
         );
+        console.error("Error:", text);
         return;
       }
     }
@@ -99,7 +108,7 @@ function getGameKey(cb) {
       // grabbing character name from .env file, and ensuring the case is correct:
       const desiredCharacterName = process.env.CHARACTER.toLowerCase().split(
         ""
-      );
+      ); // why lower case than upper case? why split?
       desiredCharacterName[0] = desiredCharacterName[0].toUpperCase();
       const charName = desiredCharacterName.join("");
       const slotName = charSlotNames[charName];
@@ -118,13 +127,15 @@ function getGameKey(cb) {
       sgeClient.destroy();
       return;
     }
-    console.error("Error - unknown text received:");
+    console.error("\n\n*******************************\n\n");
+    console.error(" Error - unknown text received:");
     console.error(text);
+    console.error("\n\n*******************************\n\n");
   });
 
   function hashPassword() {
     const PASS = process.env.PASSWORD;
-    console.log(`Hashing password (${PASS})`);
+    console.log(`Hashing password.`);
     let hashedPassword = [];
     PASS.split("").forEach((char, i) => {
       const result = hashChar(PASS[i], hashKey[i]);

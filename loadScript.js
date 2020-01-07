@@ -4,7 +4,7 @@
 const path = require("path");
 const fs = require("fs");
 
-function loadScript(scriptFileName, sendCommandToGame) {
+function loadScript(scriptFileName, sendCommandToGame, globals) {
   return new Promise((resolve, reject) => {
     if (!scriptFileName) return console.error("Must specify a file name!");
     const directoryPath = path.join(__dirname, "scripts");
@@ -22,11 +22,11 @@ function loadScript(scriptFileName, sendCommandToGame) {
       try {
         clearScriptCache();
         let load = require(scriptFullPath);
-        const { run, parseText } = await load(sendCommandToGame);
-        console.log("loadscript, parseText:", parseText);
+        let { run, parseText } = await load(sendCommandToGame, globals);
         resolve(parseText);
         await run();
-        console.log("loadScript script ended");
+        parseText = () => {};
+        console.log("Script ended:", scriptFileName);
       } catch (err) {
         console.error("Error running script", scriptFileName, ":", err);
         return reject(() => {});
@@ -46,32 +46,10 @@ function clearScriptCache() {
   }
 }
 
-// let globalParseText = () => {
-//   console.log("loadScript parse text running");
-// };
-
-// function loadScript(scriptFileName) {
-//   if (!scriptFileName) return console.error("Must specify a file name!");
-//   const directoryPath = path.join(__dirname, "scripts");
-//   fs.readdir(directoryPath, (err, fileNameList) => {
-//     if (err)
-//       return console.log(
-//         "Unable to open list of script files in /script directory:",
-//         err
-//       );
-//     // for now, no fancy checking:
-//     if (!fileNameList.includes(scriptFileName + ".js")) {
-//       console.error("Could not find script named", scriptFileName);
-//     }
-//     const scriptFullPath = path.join(directoryPath, scriptFileName + ".js");
-//     try {
-//       const { run, parseText } = require(scriptFullPath);
-//       globalParseText = parseText;
-//       run();
-//     } catch (err) {
-//       console.error("Error running script", scriptFileName, ":", err);
-//     }
-//   });
-// }
-
-// module.exports = { loadScript, globalParseText };
+// import method to test:
+// import("my-module.js").then(module => {
+//   CONTAINER.sayHello = module.sayHello;
+//   CONTAINER.sayHello(); // hello
+//   delete CONTAINER.sayHello;
+//   console.log(CONTAINER.sayHello); // undefined
+// });

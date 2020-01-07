@@ -1,0 +1,36 @@
+Connected to eaccess.play.net:7900
+Sending: K
+
+Error parsing SGE line.
+HASH KEY: [111,113,86,80,80,79,108,75,70,88,119,87,87,121,108,86,89,83,90,92,101,88,104,96,106,73,74,124,108,64,72,123,10]
+Sending authentication string...
+Hashing password.
+SEND: A drnoder 104,95,57,61,57,60,68,126,119,104
+
+Error parsing SGE line.
+Authentication Successful!
+Sending: M
+
+
+COMMAND:
+events.js:282
+      throw er; // Unhandled 'error' event
+      ^
+
+Error [ERR_SOCKET_CLOSED]: Socket is closed
+    at Socket._writeGeneric (net.js:769:8)
+    at Socket._write (net.js:791:8)
+    at doWrite (_stream_writable.js:464:12)
+    at writeOrBuffer (_stream_writable.js:446:5)
+    at Socket.Writable.write (_stream_writable.js:326:11)
+    at /home/scott/nodr/connect.js:146:12
+    at Array.forEach (<anonymous>)
+    at sendCommandToGame (/home/scott/nodr/connect.js:145:23)
+    at /home/scott/nodr/connect.js:138:7
+    at Interface._onLine (readline.js:321:5)
+Emitted 'error' event on Socket instance at:
+    at errorOrDestroy (internal/streams/destroy.js:128:12)
+    at onwriteError (_stream_writable.js:473:3)
+    at processTicksAndRejections (internal/process/task_queues.js:86:21) {
+  code: 'ERR_SOCKET_CLOSED'
+}

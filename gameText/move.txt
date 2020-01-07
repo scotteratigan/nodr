@@ -1,0 +1,72 @@
+Need to review xml at high level, too much text is getting hidden
+
+
+moving east produces:
+You go east.
+<nav/>
+<streamWindow id='main' title='Story' subtitle=" - [The Crossing, Magen Road]" location='center' target='drop'/>
+<streamWindow id='room' title='Room' subtitle=" - [The Crossing, Magen Road]" location='center' target='drop' ifClosed='' resident='true'/>
+<component id='room desc'>Not far off you spot the town walls, which meet at a right angle in this northeast corner of town.  This road is kept busy by the traffic to and from the popular haunts crowded into this sector - the Barbarians' Guild, the Champions' Arena, the Empaths' Guild, Martyr Saedelthorp's Healing Hospital, and the convivial Gaethrend's Court Inn.  In addition, the Paladins' Guild farther north, and the gate leading out of town to the Warrior Mages' Guild and the wilds all are accessed through this street.</component>
+<component id='room objs'></component>
+<component id='room players'></component>
+<component id='room exits'>Obvious paths: <d>north</d>, <d>east</d>, <d>west</d>.<compass></compass></component>
+<component id='room extra'></component>
+<resource picture="0"/><style id="roomName" />[The Crossing, Magen Road]
+<style id=""/><preset id='roomDesc'>Not far off you spot the town walls, which meet at a right angle in this northeast corner of town.  This road is kept busy by the traffic to and from the popular haunts crowded into this sector - the Barbarians' Guild, the Champions' Arena, the Empaths' Guild, Martyr Saedelthorp's Healing Hospital, and the convivial Gaethrend's Court Inn.  In addition, the Paladins' Guild farther north, and the gate leading out of town to the Warrior Mages' Guild and the wilds all are accessed through this street.</preset>
+Obvious paths: <d>north</d>, <d>east</d>, <d>west</d>.
+<compass><dir value="n"/><dir value="e"/><dir value="w"/></compass><component id='room objs'></component>
+<component id='room players'></component>
+<prompt time="1578432337">&gt;</prompt>
+
+
+Ok, so two streamWindow lines, one is for room window, other is for main game window.
+For now, just trigger off of the Room one.
+
+You go west.
+<nav/>
+<streamWindow id='main' title='Story' subtitle=" - [Northeast Wilds, Outside Northeast Gate]" location='center' target='drop'/>
+<streamWindow id='room' title='Room' subtitle=" - [Northeast Wilds, Outside Northeast Gate]" location='center' target='drop' ifClosed='' resident='true'/>
+<component id='room desc'>You are before the Northeast Gate of the Crossing, surrounded by wayfarers and adventurers also in mid-journey.  Above, guardsmen stare down from the thick stone wall that encloses the city, wary for hostile visitors.  Whether they travel to destinations in town or farther west, or to the north and east, they all appear to be seeking something beyond themselves.</component>
+<component id='room objs'>You also see a weathered roadsign, a bucket of viscous gloop, the Northeast Gate and a narrow footpath.</component>
+<component id='room players'></component>
+<component id='room exits'>Obvious paths: <d>north</d>, <d>east</d>, <d>southeast</d>.<compass></compass></component>
+<component id='room extra'></component>
+<resource picture="0"/><style id="roomName" />[Northeast Wilds, Outside Northeast Gate]
+<style id=""/><preset id='roomDesc'>You are before the Northeast Gate of the Crossing, surrounded by wayfarers and adventurers also in mid-journey.  Above, guardsmen stare down from the thick stone wall that encloses the city, wary for hostile visitors.  Whether they travel to destinations in town or farther west, or to the north and east, they all appear to be seeking something beyond themselves.</preset>  You also see a weathered roadsign, a bucket of viscous gloop, the Northeast Gate and a narrow footpath.
+Obvious paths: <d>north</d>, <d>east</d>, <d>southeast</d>.
+<compass><dir value="n"/><dir value="e"/><dir value="se"/></compass><component id='room players'></component>
+<prompt time="1578435305"></prompt>
+
+get stick:
+<clearContainer id="stow"/><inv id='stow'>In the carpetbag:</inv><inv id='stow'> a fir stick</inv>You put your stick in your leather-clasped carpetbag.
+
+renders this:
+In the carpetbag: nothingYou get a fir stick from inside your leather-clasped carpetbag.
+
+get stick:
+<left exist="66661843" noun="stick">fir stick</left><clearStream id='inv' ifClosed=''/><pushStream id='inv'/>Your worn items are:
+  a divine charm
+  a front-laced leather tunic
+  some drab leather breeches
+  a rough leather-clasped carpetbag
+<popStream/>
+<clearContainer id="stow"/><inv id='stow'>In the carpetbag:</inv><inv id='stow'> nothing</inv>You get a fir stick from inside your leather-clasped carpetbag.
+<prompt time="1578435906"></prompt>
+
+renders this:
+fir stick
+You get a fir stick from inside your leather-clasped carpetbag.
+
+assess is missing:
+<streamWindow id="assess" title="Assess" location="right" resident="true"/><clearStream id="assess"/><pushStream id="assess"/>You assess your combat situation...
+<popStream/>
+<prompt time="1578436092"></prompt>
+
+attack:
+<dialogData id='minivitals'><skin id='staminaSkin' name='staminaBar' controls='stamina' left='25%' top='0%' width='25%' height='100%'/><progressBar id='stamina' value='98' text='fatigue 98%' left='25%' customText='t' top='0%' width='25%' height='100%'/></dialogData>
+&lt; Moving with amazing force and guile, you feint a wood-hilted broadsword at a ship's rat.  A ship's rat attempts to evade, stepping partly into the blow.  The broadsword lands an ineffective strike to the rat's right leg.
+[You're nimbly balanced and opponent has slight advantage.]
+[Roundtime 5 sec.]
+
+new exp not hidden:
+<component id='exp Large Edged'><preset id='whisper'>     Large Edged:    4 00% dabbling     </preset></component>

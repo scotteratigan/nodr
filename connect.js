@@ -8,44 +8,45 @@ const readline = require("readline").createInterface({
 });
 const client = new net.Socket();
 const getConnectKey = require("./sge");
-let gameTime = 0;
 let buffer = "";
-let roomName = "";
-let roomDesc = "";
-let roomObjs = "";
-let roomObjsList = [];
-let roomObjsCount = 0;
-let roomPlayers = "";
-let roomExits = "";
-let roomExtra = "";
-let lastRoundtime = 0;
-let health = 100;
-let mana = 100;
-let spirit = 100;
-let stamina = 100;
-let concentration = 100;
-let rightHand = null;
-let rightHandNoun = null;
-let rightHandId = null;
-let leftHand = null;
-let leftHandNoun = null;
-let leftHandId = null;
-let exp = {};
-let stowedItems = [];
-let wornItems = [];
-let spell = null;
-let castTime = 0; // contains gametime when spell is fully prepared OR gametime of last cast?
-let activeSpells = [];
-let monsterList = [];
-let monsterCount = 0;
 
-let sendParseText = () => {
-  console.log("connect parseTextFn running");
+const globals = {
+  gameTime: 0,
+  roomName: "",
+  roomDesc: "",
+  roomObjs: "",
+  roomObjsList: [],
+  roomObjsCount: 0,
+  roomPlayers: "",
+  roomExits: "",
+  roomExtra: "",
+  roundtimeEnd: 0,
+  health: 100,
+  mana: 100,
+  spirit: 100,
+  stamina: 100,
+  concentration: 100,
+  rightHand: {
+    item: null,
+    noun: null,
+    id: null
+  },
+  leftHand: {
+    item: null,
+    noun: null,
+    id: null
+  },
+  exp: {},
+  stowedItems: [],
+  wornItems: [],
+  spell: null,
+  castTime: 0, // contains gametime when spell is fully prepared OR gametime of last cast
+  activeSpells: [],
+  monsterList: [],
+  monsterCount: 0
 };
 
-// let sendTextFn = () => {
-//   console.log("connect sendTextFn running");
-// };
+let sendParseText = () => {};
 
 // let subscribedScripts = [];
 
@@ -55,9 +56,9 @@ let wornInventoryMode = false;
 let activeSpellMode = false;
 
 getConnectKey((connectKey, ip, port) => {
-  console.log("connect.js has received connect key:", connectKey);
+  console.log("Received connect key:", connectKey);
   client.connect(port, ip, function() {
-    console.log("Connected, sending KEY".green);
+    console.log("Connected, sending key.".green);
     setTimeout(() => {
       client.write(connectKey + "\n");
     }, 100);
@@ -66,13 +67,13 @@ getConnectKey((connectKey, ip, port) => {
     }, 200);
     setTimeout(() => {
       client.write("l\n");
-    }, 1000);
+    }, 500); // testing shorter timeout here
   });
 });
 
 client.on("data", data => {
   // detects incomplete data fragments - if line does not end with \r\n, the data is split and we need to await the next packet before displaying/parsing all the data
-  let gameStr = buffer + data.toString(); // todo: use actual buffer here
+  let gameStr = buffer + data.toString(); // todo: use actual buffer here?
   if (!gameStr.match(/\r\n$/)) {
     buffer += gameStr;
     return;
@@ -82,7 +83,11 @@ client.on("data", data => {
   gameStr.split("\r\n").forEach(line => parseXmlByLine(line));
   if (hideXML) {
     gameStr = gameStr.replace(/<pushStream[\s\S]+<popStream\/>/m, ""); // removes special multi-line tags
-    gameStr = gameStr.replace(/<component id='exp[\s\S]+<\/component>/, ""); // hides exp messages
+    gameStr = gameStr.replace(/<component id='exp[\s\S]+<\/component>/g, ""); // hides exp messages
+    gameStr = gameStr.replace(/<component id='room .*<\/component>/g, ""); // removes double-room messaging
+    gameStr = gameStr.replace(/<clearContainer .*<\/inv>/, ""); // fixes: In the carpetbag: nothingYou get a fir stick from inside your leather-clasped carpetbag.
+    gameStr = gameStr.replace(/<(left|right)>.*\/>/, ""); // fixes displaying hand items in game window when getting/stowing
+
     gameStr = gameStr.replace(/<[^>]+>/g, ""); // removes single-line tags
   }
   gameStr = gameStr.replace(/^\s*\r?\n/g, ""); // strip all whitespace
@@ -94,8 +99,10 @@ client.on("data", data => {
     console.log("sendParseText:", sendParseText);
   }
 
-  console.log(gameStr);
-  // console.log("---------------------------------");
+  // console.log(gameStr);
+  gameStr.split("\r\n").forEach(line => {
+    if (line.length > 0) console.log(line); // remove empty lines, for now. (option eventually?)
+  });
 });
 
 client.on("close", function() {
@@ -112,6 +119,8 @@ function getCommand() {
     if (commands === "raw") {
       hideXML = !hideXML;
       console.log("hideXML:", hideXML);
+    } else if (commands === "#var") {
+      console.log(globals);
     } else if (commands.startsWith(".")) {
       const scriptName = commands.substr(1);
       console.log("Script detected:", scriptName);
@@ -120,9 +129,12 @@ function getCommand() {
         const { loadScript } = scriptImport;
         // const { loadScript } = loader();
         console.log("awaiting...");
-        const parseText = await loadScript(scriptName, sendCommandToGame); // pass a fn which can be used to send commands to game
-        console.log("awaited, parseText:", parseText);
-        sendParseText = parseText;
+        sendParseText = await loadScript(
+          scriptName,
+          sendCommandToGame,
+          globals
+        ); // return value is function that sends text to game
+        // sendParseText = parseText;
       } catch (err) {
         console.error("error:", err);
       }
@@ -141,35 +153,45 @@ function sendCommandToGame(commands) {
 }
 
 function parseXmlByLine(line) {
-  if (wornInventoryMode && !line.startsWith("<popStream")) {
-    wornItems.push(line.trim());
+  // if (wornInventoryMode && !line.startsWith("<popStream")) {
+  if (wornInventoryMode && line.startsWith("  ")) {
+    globals.wornItems.push(line.trim());
     return;
   }
   if (activeSpellMode && !line.startsWith("<popStream/>")) {
-    activeSpells.push(line.trim());
+    globals.activeSpells.push(line.trim());
   }
   const xmlMatch = line.match(/^<(\w+)/);
   if (!xmlMatch) return;
   // console.log("xmlMatch:", xmlMatch);
   switch (xmlMatch[1]) {
     case "prompt":
-      gameTime = line.match(/^<prompt time="(\d+)"/)[1];
+      globals.gameTime = line.match(/^<prompt time="(\d+)"/)[1];
       // console.log("gameTime:", gameTime);
       return;
     case "roundTime":
-      lastRoundtime = line.match(/^<roundTime value='(\d+)'/)[1];
-      // console.log("lastRoundtime:", lastRoundtime);
+      const rtMatch = line.match(/^<roundTime value='(\d+)'\/>(.*)/);
+      try {
+        globals.roundtimeEnd = rtMatch[1];
+        console.log(rtMatch[2]);
+        sendParseText(rtMatch[2]);
+      } catch (err) {
+        console.error("Error processing RT line:", err, line);
+      }
+      // console.log("roundtimeEnd:", roundtimeEnd);
       break;
     case "nav":
       // indicates the start of movement, but doesn't seem to convey any useful info
+      console.log("nav detected, moved rooms.");
+      // todo: fire event when this happens
       break;
     case "pushBold":
     case "popBold":
-      // activates bold
+      // activates bold, ignoring for now
       return;
     case "clearStream":
       if (line === '<clearStream id="percWindow"/>') {
-        activeSpells = [];
+        globals.activeSpells = [];
       }
       // prior to spell list
       // <clearStream id="percWindow"/>
@@ -179,29 +201,29 @@ function parseXmlByLine(line) {
       if (line.startsWith('<pushStream id="percWindow')) {
         activeSpellMode = true;
         const firstActiveSpell = line.substring(29).trim();
-        activeSpells.push(firstActiveSpell);
+        globals.activeSpells.push(firstActiveSpell);
       }
       return;
     case "popStream":
       // end of spell list, inventory, etc
       if (wornInventoryMode) {
         wornInventoryMode = false;
-        console.log("wornItems:", wornItems);
+        console.log("wornItems:", globals.wornItems);
       } else if (activeSpellMode) {
         activeSpellMode = false;
-        console.log("activeSpells:", activeSpells);
+        console.log("activeSpells:", globals.activeSpells);
       }
       return;
     case "streamWindow":
       // new room...
       const roomMatch = line.match(
-        /<streamWindow id='\w+' title='\w+' subtitle=" - \[(.+)\]"/
+        /<streamWindow id='main' title='Story' subtitle=" - \[(.+)\]"/
       );
       if (roomMatch) {
-        roomName = roomMatch[1];
-        console.log("roomName:", roomName);
+        globals.roomName = roomMatch[1];
+        // console.log("roomName:", globals.roomName);
       } else {
-        console.error("error grabbing roomName");
+        // console.error("error grabbing roomName"); // ignoring error since this sends twice on each movement
       }
       return;
     case "right":
@@ -217,8 +239,14 @@ function parseXmlByLine(line) {
     case "spell":
       return parseSpellXml(line);
     case "castTime":
-      castTime = parseInt(line.match(/<castTime value='(\d+)'\/>/)[1]);
-      return console.log("castTime:", castTime);
+      try {
+        globals.castTime = parseInt(
+          line.match(/<castTime value='(\d+)'\/>/)[1]
+        );
+        return console.log("castTime:", globals.castTime);
+      } catch (err) {
+        return console.error("Error parsing spell time:", err);
+      }
     case "resource":
     // used for pictures? lol
     case "style":
@@ -236,7 +264,7 @@ function parseXmlByLine(line) {
     // <indicator id="IconKNEELING" visible="n"/><indicator id="IconPRONE" visible="n"/><indicator id="IconSITTING" visible="n"/><indicator id="IconSTANDING" visible="y"/><indicator id="IconKNEELING" visible="n"/><indicator id="IconPRONE" visible="n"/><indicator id="IconSITTING" visible="n"/><indicator id="IconSTANDING" visible="y"/>You stand back up.
     // a change in status (keeling/standing/sitting/possibly bleeding/stunned/dead?)
     default:
-      console.log("Unknown xml:", xmlMatch[1]);
+      if (!hideXML) console.log("Unknown xml:", xmlMatch[1], line);
       return;
   }
 }
@@ -250,67 +278,90 @@ function parseComponentXML(line) {
   <component id='room extra'></component>
   wtf is extra?
   */
-  const matchType = line.match(/<component id='([^']+)'/);
-  const matchVal = line.match(/<component id='.+'>(.*)<\/component>/);
-
-  if (matchType[1].startsWith("exp")) {
-    const skill = matchType[1].substring(4);
-    const value = matchVal[1].trim();
-    if (value) {
-      console.log(`Exp in ${skill} - ${value}`);
-      exp.skill = value;
-    } else {
-      console.log(`Skill pulsed ${skill}`);
-    }
-    // <component id='exp Warding'></component> <- this means skill is not learning (login msgs)
+  let matchType;
+  let matchVal;
+  try {
+    // todo: combine this regex:
+    matchType = line.match(/<component id='([^']+)'/);
+    matchVal = line.match(/<component id='.+'>(.*)<\/component>/);
+  } catch (err) {
+    console.error("Error trying to parseComponentXML:", err);
     return;
   }
+
+  if (matchType[1].startsWith("exp")) {
+    try {
+      const skill = matchType[1].substring(4);
+      const value = matchVal[1].trim();
+      // todo: this is pretty essential...
+      if (value) {
+        // console.log(`Exp in ${skill} - ${value}`);
+        // globals.exp[skill] = value;
+      } else {
+        // console.log(`Skill pulsed ${skill}`); // todo: hook in fn here
+      }
+      // <component id='exp Warding'></component> <- this means skill is not learning (login msgs)
+      return;
+    } catch (err) {
+      console.error("Error parsing exp:", err);
+    }
+  }
+
   // console.log("matchType:", matchType[1]);
   // console.log("matchVal:", matchVal[1]);
   switch (matchType[1]) {
     case "room desc":
-      roomDesc = matchVal[1];
-      if (roomDesc) console.log("roomDesc:", roomDesc);
+      const roomDesc = matchVal[1];
+      if (roomDesc) {
+        globals.roomDesc = roomDesc;
+        // console.log("roomDesc:", roomDesc);
+      }
       break;
     case "room objs":
       // todo: break this out into separate function
       // <component id='room objs'>You also see some dirt, a leaf, a twig, a weathered roadsign, a bucket of viscous gloop and a narrow footpath.</component>
       // no great way to split the string into an array because items like ball and chain exist
       // I'll do it a hacky way for now;
-      roomObjs = matchVal[1];
-      roomObjsCount = 0;
-      monsterList = [];
-      monsterCount = 0;
-      if (!roomObjs) {
-        roomObjsList = [];
-        return;
+      try {
+        const roomObjs = matchVal[1];
+        const monsterList = [];
+        if (!roomObjs) {
+          globals.roomObjsList = [];
+          globals.monsterCount = 0;
+          globals.roomObjsCount = 0;
+          return;
+        }
+        globals.roomObjsList = roomObjs
+          .replace(/^You also see /, "")
+          .replace(/\.$/, "")
+          .replace(" and ", ", ")
+          .split(", ");
+        globals.roomObjsCount = globals.roomObjsList.length;
+        // console.log(
+        //   `roomObjsList (${globals.roomObjsCount}): ${globals.roomObjsList}`
+        // );
+        if (!roomObjs.includes("<pushBold/>")) return;
+        globals.monsterList = roomObjs
+          .match(/<pushBold\/>([^<]+)<popBold\/>/g)
+          .map(mobMatch => mobMatch.match(/<pushBold\/>([^<]+)<popBold\/>/)[1]);
+        globals.monsterCount = monsterList.length;
+        // if (globals.monsterCount) console.log("mobs:", globals.monsterCount, ":", globals.monsterList);
+        // roomObjs: You also see <pushBold/>a ship's rat<popBold/>, <pushBold/>a ship's rat<popBold/> and <pushBold/>a ship's rat<popBold/>.
+      } catch (err) {
+        console.error("Error parsing room objs:", err);
       }
-      roomObjsList = roomObjs
-        .replace(/^You also see /, "")
-        .replace(/\.$/, "")
-        .replace(" and ", ", ")
-        .split(", ");
-      roomObjsCount = roomObjsList.length;
-      console.log(`roomObjsList (${roomObjsCount}): ${roomObjsList}`);
-      if (!roomObjs.includes("<pushBold/>")) return;
-      monsterList = roomObjs
-        .match(/<pushBold\/>([^<]+)<popBold\/>/g)
-        .map(mobMatch => mobMatch.match(/<pushBold\/>([^<]+)<popBold\/>/)[1]);
-      monsterCount = monsterList.length;
-      if (monsterCount) console.log("mobs:", monsterCount, ":", monsterList);
-      // roomObjs: You also see <pushBold/>a ship's rat<popBold/>, <pushBold/>a ship's rat<popBold/> and <pushBold/>a ship's rat<popBold/>.
       break;
     case "room players":
-      roomPlayers = matchVal[1];
-      if (roomPlayers) console.log("roomPlayers:", roomPlayers);
+      globals.roomPlayers = matchVal[1];
+      // if (globals.roomPlayers) console.log("roomPlayers:", globals.roomPlayers);
       break;
     case "room exits":
-      roomExits = matchVal[1];
-      if (roomExits) console.log("roomExits:", roomExits);
+      globals.roomExits = matchVal[1];
+      // if (globals.roomExits) console.log("roomExits:", globals.roomExits);
       break;
     case "room extra":
-      roomExtra = matchVal[1];
-      if (roomExtra) console.log("roomExtra:", roomExtra);
+      globals.roomExtra = matchVal[1];
+      // if (globals.roomExtra) console.log("roomExtra:", globals.roomExtra);
       break;
     default:
       console.log("Uknown matchType:", matchType[1], "with val:", matchVal[1]);
@@ -324,23 +375,18 @@ function parseDialogDataXML(line) {
   const dialogValMatch = line.match(/ value='(\d+)' /);
   const dialogType = dialogTypeMatch ? dialogTypeMatch[1] : null;
   const dialogVal = dialogValMatch ? dialogValMatch[1] : null;
-  switch (dialogType) {
-    case "mana":
-      mana = parseInt(dialogVal);
-      console.log("mana:", mana);
-      break;
-    case "stamina":
-      stamina = parseInt(dialogVal);
-      console.log("stamina:", stamina);
-      break;
-    case "concentration":
-      concentration = parseInt(dialogVal);
-      console.log("concentration:", concentration);
-      break;
-    default:
-      console.log("Uknown dialogType:", dialogType);
-      break;
+  try {
+    var dialogValInt = parseInt(dialogVal);
+    setGlobal(dialogType, dialogValInt);
+  } catch (err) {
+    console.error("Error parsing dialogVal to integer:", err);
   }
+}
+
+function setGlobal(key, value) {
+  // todo: add hook here for certain keys firing
+  // if (key === "stamina") console.log("setGlobal - stamina change");
+  global[key] = value;
 }
 
 function parseHandXML(line, hand) {
@@ -349,70 +395,66 @@ function parseHandXML(line, hand) {
 
   // inventory list follows hand xml:
   wornInventoryMode = true;
-  wornItems = [];
+  globals.wornItems = [];
   const emptyHandMatch = line.match(/^<\w+>Empty/);
   if (emptyHandMatch) {
     if (hand === "right") {
-      rightHand = null;
-      rightHandNoun = null;
-      rightHandId = null;
-      console.log("Right hand is empty.");
+      globals.rightHand = {
+        item: null,
+        noun: null,
+        id: null
+      };
+      // console.log("Right hand is empty.");
     } else {
-      leftHand = null;
-      leftHandNoun = null;
-      leftHandId = null;
-      console.log("Left hand is empty.");
+      globals.leftHand = {
+        item: null,
+        noun: null,
+        id: null
+      };
+      // console.log("Left hand is empty.");
     }
     return;
   }
   const item = line.match(/<\w+ exist="\d+" noun="\w+">([^<]+)</)[1];
-  const itemId = line.match(/<\w+ exist="(\d+)"/)[1];
-  const itemNoun = line.match(/<\w+ exist="\d+" noun="(\w+)">/)[1];
-  console.log(`Item in ${hand}: ${item} (${itemId} - ${itemNoun})`);
+  const id = line.match(/<\w+ exist="(\d+)"/)[1];
+  const noun = line.match(/<\w+ exist="\d+" noun="(\w+)">/)[1];
+  console.log(`Item in ${hand}: ${item} (${id} - ${noun})`);
   if (hand === "right") {
-    rightHand = item;
-    rightHandNoun = itemId;
-    rightHandNoun = itemNoun;
+    if (globals.rightHand.id !== id) {
+      // only fire event on change.
+      globals.rightHand = { item, id, noun };
+    }
   } else {
-    leftHand = item;
-    leftHandNoun = itemId;
-    leftHandNoun = itemNoun;
+    if (globals.leftHand.id !== id) {
+      globals.leftHand = { item, id, noun };
+    }
   }
 }
 
 function parseContainerItems(line) {
   // <clearContainer id="stow"/><inv id='stow'>In the sack:</inv><inv id='stow'> a vault book with a tooled leather cover</inv><inv id='stow'> a misshaped deobar caddy</inv>You get a ...
   // start with index 1 to get actual items:
-  stowedItems = line
-    .match(/<inv id='stow'>([^<]+)<\/inv>/g)
-    .map(itemStr => itemStr.match(/<inv id='stow'>([^<]+)<\/inv>/)[1].trim());
-  console.log("stowedItems:", stowedItems);
+  try {
+    globals.stowedItems = line
+      .match(/<inv id='stow'>([^<]+)<\/inv>/g)
+      .map(itemStr => itemStr.match(/<inv id='stow'>([^<]+)<\/inv>/)[1].trim());
+    console.log("stowedItems:", globals.stowedItems);
+  } catch (err) {
+    console.error("Error with parseContainerItems:", err);
+  }
 }
 
 function parseSpellXml(line) {
   if (line === "<spell>None</spell>") {
     console.log("No spell.");
-    spell = null;
+    globals.spell = null;
   }
   const spellMatch = line.match(/<spell exist='spell'>([^<]+)<\/spell>/);
-  spell = spellMatch ? spellMatch[1] : null;
-  console.log("Spell:", spell);
+  globals.spell = spellMatch ? spellMatch[1] : null;
+  console.log("Spell:", globals.spell);
 }
 
-// function parsePushStream(line) {
-//   /*
-//   <pushStream id="percWindow"/>Swirling Winds  (10 roisaen)
-//   Ethereal Shield  (10 roisaen)
-//   <popStream/><castTime value='1569565556'/>
-//   */
-// }
-
-// function sendToScripts(gameText) {
-//   subscribedScripts.forEach(script => {
-//     script.parseText(gameText);
-//   });
-// }
-
-// function addScriptSubscription(script) {
-//   subscribedScripts.push(script);
-// }
+// Unknown xml: exposeContainer
+// Uknown dialogType: health
+// Uknown dialogType: spirit
+// Unknown xml: openDialog
