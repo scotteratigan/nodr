@@ -39,8 +39,18 @@ let activeSpells = [];
 let monsterList = [];
 let monsterCount = 0;
 
+let sendParseText = () => {
+  console.log("connect parseTextFn running");
+};
+
+// let sendTextFn = () => {
+//   console.log("connect sendTextFn running");
+// };
+
+// let subscribedScripts = [];
+
 // runtime bools:
-let hideXML = false;
+let hideXML = true; // type 'raw' in game to toggle
 let wornInventoryMode = false;
 let activeSpellMode = false;
 
@@ -62,7 +72,7 @@ getConnectKey((connectKey, ip, port) => {
 
 client.on("data", data => {
   // detects incomplete data fragments - if line does not end with \r\n, the data is split and we need to await the next packet before displaying/parsing all the data
-  let gameStr = buffer + data.toString();
+  let gameStr = buffer + data.toString(); // todo: use actual buffer here
   if (!gameStr.match(/\r\n$/)) {
     buffer += gameStr;
     return;
@@ -71,15 +81,21 @@ client.on("data", data => {
 
   gameStr.split("\r\n").forEach(line => parseXmlByLine(line));
   if (hideXML) {
-    gameStr = gameStr.replace(/<pushStream[\s\S]+<popStream\/>/m, ""); // removes special multi-line tags (note: . doesn't match newline)
+    gameStr = gameStr.replace(/<pushStream[\s\S]+<popStream\/>/m, ""); // removes special multi-line tags
     gameStr = gameStr.replace(/<component id='exp[\s\S]+<\/component>/, ""); // hides exp messages
     gameStr = gameStr.replace(/<[^>]+>/g, ""); // removes single-line tags
   }
-  gameStr = gameStr.replace(/^\s*\r\n/g, "");
-  gameStr = gameStr.replace("&gt;", ""); // make the prompt >
-  console.log(gameStr);
+  gameStr = gameStr.replace(/^\s*\r?\n/g, ""); // strip all whitespace
+  gameStr = gameStr.replace(/&gt;/g, ""); // make the prompt >
+  try {
+    sendParseText(gameStr);
+  } catch (err) {
+    console.error("Error:", err);
+    console.log("sendParseText:", sendParseText);
+  }
 
-  console.log("---------------------------------");
+  console.log(gameStr);
+  // console.log("---------------------------------");
 });
 
 client.on("close", function() {
@@ -87,24 +103,42 @@ client.on("close", function() {
   process.exit(0);
 });
 
+getCommand();
+
 function getCommand() {
-  // recursive function to get commands from player
-  // todo: create a while loop
-  readline.question(``, commands => {
+  // recursive function to get commands from player (todo: convert to loop)
+  // todo: make prompt here match game prompt (readline.question)
+  readline.question(``, async commands => {
     if (commands === "raw") {
       hideXML = !hideXML;
       console.log("hideXML:", hideXML);
+    } else if (commands.startsWith(".")) {
+      const scriptName = commands.substr(1);
+      console.log("Script detected:", scriptName);
+      try {
+        const scriptImport = require("./loadScript"); // doing this here so I can update dynamically w/o reconnecting constantly
+        const { loadScript } = scriptImport;
+        // const { loadScript } = loader();
+        console.log("awaiting...");
+        const parseText = await loadScript(scriptName, sendCommandToGame); // pass a fn which can be used to send commands to game
+        console.log("awaited, parseText:", parseText);
+        sendParseText = parseText;
+      } catch (err) {
+        console.error("error:", err);
+      }
     } else {
-      commands.split(";").forEach(command => {
-        client.write(command + "\n");
-        console.log("COMMAND: " + command);
-      });
+      sendCommandToGame(commands);
     }
     getCommand();
   });
 }
 
-getCommand();
+function sendCommandToGame(commands) {
+  commands.split(";").forEach(command => {
+    client.write(command + "\n");
+    console.log("COMMAND: " + command);
+  });
+}
 
 function parseXmlByLine(line) {
   if (wornInventoryMode && !line.startsWith("<popStream")) {
@@ -120,11 +154,11 @@ function parseXmlByLine(line) {
   switch (xmlMatch[1]) {
     case "prompt":
       gameTime = line.match(/^<prompt time="(\d+)"/)[1];
-      console.log("gameTime:", gameTime);
+      // console.log("gameTime:", gameTime);
       return;
     case "roundTime":
       lastRoundtime = line.match(/^<roundTime value='(\d+)'/)[1];
-      console.log("lastRoundtime:", lastRoundtime);
+      // console.log("lastRoundtime:", lastRoundtime);
       break;
     case "nav":
       // indicates the start of movement, but doesn't seem to convey any useful info
@@ -191,7 +225,7 @@ function parseXmlByLine(line) {
     // used in room descriptions, but I'm not using this one because look/peer fools this one
     // <style id="roomName" />[Northeast Wilds, Grimsage Way]
     case "compass":
-      // shows room exits, but again this is not as accurate as alternate method which only sends on actual movement
+      // shows room exits, but again this is not as accurate as alternate method which only sends on actual movement, so ignore
       // <compass><dir value="s"/></compass><prompt time="1569561088">&gt;</prompt>
       return;
     case "output":
@@ -365,52 +399,20 @@ function parseSpellXml(line) {
   console.log("Spell:", spell);
 }
 
-function parsePushStream(line) {
-  /*
-  <pushStream id="percWindow"/>Swirling Winds  (10 roisaen)
-  Ethereal Shield  (10 roisaen)
-  <popStream/><castTime value='1569565556'/>
-  */
-}
+// function parsePushStream(line) {
+//   /*
+//   <pushStream id="percWindow"/>Swirling Winds  (10 roisaen)
+//   Ethereal Shield  (10 roisaen)
+//   <popStream/><castTime value='1569565556'/>
+//   */
+// }
 
-// const gameLines = gameStr.replace(/&gt;/g, ">").split("\r\n");
-// gameLines.forEach(line => console.log(line));
+// function sendToScripts(gameText) {
+//   subscribedScripts.forEach(script => {
+//     script.parseText(gameText);
+//   });
+// }
 
-// const textArr = gameStr.split(/\r\n/);
-// let bold = false;
-// textArr.forEach(line => {
-//   if (line.startsWith("<")) {
-//     if (line.startsWith("<pushBold/>")) {
-//       // line = line.substring(11);
-//       bold = true;
-//     } else if (line.startsWith("<popBold/>")) {
-//       // line = line.substring(10);
-//       bold = false;
-//     } else if (line.startsWith("<prompt time")) {
-//       gameTime = parseInt(line.match(/"(\d+)"/)[1]);
-//       // line = "";
-//     } else if (
-//       line.match(/^<resource picture="\S+"\/><style id="roomName" \/>.+/)
-//     ) {
-//       roomName = line.match(
-//         /^<resource picture="\S+"\/><style id="roomName" \/>(.+)/
-//       )[1];
-//       // line = "roomName: " + roomName;
-//     } else if (line.match(/^<style id=""\/><preset id='roomDesc'>/)) {
-//       roomDesc = line
-//         .match(/^<style id=""\/><preset id='roomDesc'>(.+)/)[1]
-//         .replace(/<d\/?>/g, "");
-//       // line = "roomDesc: " + roomDesc;
-//     } else if (line.match(/^<compass>.*dir value="\w+"/)) {
-//       roomExits = line.match(/dir value="(\w+)"/g);
-//       // returns array of: 'dir value="blah"'
-//       roomExits = roomExits.map(exitStr =>
-//         exitStr.substring(10, exitStr.length - 1)
-//       );
-//       // console.log("roomExits:", roomExits); // ['n', 'e', 'se'] <- example values
-//       // line = "";
-//       // line = line.replace(/<d\/?>/g, "");
-//     }
-//   }
-//   console.log(bold ? line.cyan : line);
-// });
+// function addScriptSubscription(script) {
+//   subscribedScripts.push(script);
+// }
