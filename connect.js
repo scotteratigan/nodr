@@ -43,7 +43,8 @@ const globals = {
   castTime: 0, // contains gametime when spell is fully prepared OR gametime of last cast
   activeSpells: [],
   monsterList: [],
-  monsterCount: 0
+  monsterCount: 0,
+  moved: false
 };
 
 let sendParseText = () => {};
@@ -182,7 +183,8 @@ function parseXmlByLine(line) {
       break;
     case "nav":
       // indicates the start of movement, but doesn't seem to convey any useful info
-      console.log("nav detected, moved rooms.");
+      // console.log("nav detected, moved rooms.");
+      globals.moved = true;
       // todo: fire event when this happens
       break;
     case "pushBold":
@@ -211,7 +213,7 @@ function parseXmlByLine(line) {
         console.log("wornItems:", globals.wornItems);
       } else if (activeSpellMode) {
         activeSpellMode = false;
-        console.log("activeSpells:", globals.activeSpells);
+        // console.log("activeSpells:", globals.activeSpells);
       }
       return;
     case "streamWindow":
@@ -364,7 +366,7 @@ function parseComponentXML(line) {
       // if (globals.roomExtra) console.log("roomExtra:", globals.roomExtra);
       break;
     default:
-      console.log("Uknown matchType:", matchType[1], "with val:", matchVal[1]);
+      console.log("Uknown matchType line is:", line);
       break;
   }
 }

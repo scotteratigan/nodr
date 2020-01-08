@@ -10,15 +10,53 @@ let captureExp = false;
 
 function load(put, globals) {
   async function run() {
-    await sendRT("forage rock");
-    await sendRT("hide");
-    await sendRT("forage rock");
+    // await move("east");
+    // await move("ne");
+    // await move("go bridge");
+    // await moveList([
+    //   "Northwest",
+    //   "North",
+    //   "West",
+    //   "North",
+    //   "North",
+    //   "North",
+    //   "North",
+    //   "North",
+    //   "West",
+    //   "North"
+    // ]);
+    // await dirMove(
+    //   "Directions towards Intelligence training in Crossing: South, South, South, South, GO low gate, West, West, North, Northeast, and you're there."
+    // );
+    // put("app bro");
+    // put("exp");
+    // await pause(30);
+    // put("gouge");
+    // await pause(3);
+    // put("gouge");
+    // await pause(3);
+    // put("gouge");
+    // await pause(3);
+    // put("gouge");
+    // await pause(3);
+    // put("gouge");
+    // await pause(3);
+    // put("gouge");
+    // await pause(3);
+    // put("gouge");
+    // await pause(3);
+    // put("gouge");
+    // await pause(3);
+    // put("gouge");
+    // await pause(3);
+    // await sendRT("forage rock");
+    // await sendRT("hide");
+    // await sendRT("forage rock");
     // await pause(5);
     // await roundtime();
     // put("west");
     // await pause(5);
     // put("east");
-
     // return new Promise(async (resolve, reject) => {
     //   // put("sit");
     //   // put("exp 0");
@@ -37,6 +75,41 @@ function load(put, globals) {
     // });
   }
 
+  function dirMove(str) {
+    // return new Promise(async res => {    });
+    const moveArr = str
+      .replace(/^Directions towards .+: /, "")
+      .replace(/, and you're there\.$/, "")
+      .replace(/, and /, ", ")
+      .replace(".", "")
+      .split(", ");
+    return moveList(moveArr);
+  }
+
+  function move(command) {
+    return new Promise(res => {
+      globals.moved = false;
+      put(command);
+      let i = 0;
+      let interval = setInterval(() => {
+        i++;
+        if (globals.moved || i > 40 * 5) {
+          // 5 seconds max
+          clearInterval(interval);
+          return res();
+        }
+      }, 25); // every 25 ms
+    });
+  }
+
+  async function moveList(moves) {
+    return new Promise(async res => {
+      for (let i = 0; i < moves.length; i++) {
+        await move(moves[i]);
+      }
+    });
+  }
+
   function sendRT(command) {
     return new Promise(async res => {
       const prevRoundtimeEnd = globals.roundtimeEnd;
@@ -50,6 +123,10 @@ function load(put, globals) {
 
   function parseText(str) {
     if (str && str.startsWith("You sit down.")) return put("stand");
+
+    if (str && str.startsWith("...wait")) {
+      console.log("command failed to send");
+    }
 
     str &&
       str.split("\r\n").forEach(line => {
@@ -69,20 +146,38 @@ function load(put, globals) {
             //    Shield Usage:      3 00% clear          (0/34)     Light Armor:      3 00% clear          (0/34)
             // globals.gameTime = line.match(/^<prompt time="(\d+)"/)[1];
             if (line) {
-              // const skillMatch = line.match(/^\s+([^:]+)\s+(\d+) (\d\d):/);
-              const skillMatch = line.match(/^\s+([^:]+):\s+(\d+) (\d\d)/);
+              // todo: make this dry...
+              let skillMatch = line.match(
+                /^\s+([^:]+):\s+(\d+) (\d\d)% \w+\s+\((\d+)/
+              );
               if (skillMatch) {
-                // console.log("Skill:", skillMatch[1].replace(" ", ""));
                 const skillName = utils.getSkillName(skillMatch[1]);
                 const skillRanks = parseFloat(
                   skillMatch[2] + "." + skillMatch[3]
                 );
-                // const skillRanksFloat = parseFloat(skillRanks);
-                console.log(skillName, skillRanks);
+                const skillRate = parseInt(skillMatch[4]);
+                const skillPct = parseFloat((skillRate / 34).toFixed(2));
                 if (!globals.exp[skillName]) globals.exp[skillName] = {}; // todo: initialize this
                 globals.exp[skillName].ranks = skillRanks;
+                globals.exp[skillName].rate = skillRate;
+                globals.exp[skillName].pct = skillPct;
                 // console.log("Skill:", skillMatch);
-              } else console.log("no match");
+              }
+              skillMatch = line.match(
+                /\s+([^\):]+):\s+(\d+) (\d\d)% \w+\s+\((\d+)\/34\)$/
+              );
+              if (skillMatch) {
+                const skillName = utils.getSkillName(skillMatch[1]);
+                const skillRanks = parseFloat(
+                  skillMatch[2] + "." + skillMatch[3]
+                );
+                const skillRate = parseInt(skillMatch[4]);
+                const skillPct = parseFloat((skillRate / 34).toFixed(2));
+                if (!globals.exp[skillName]) globals.exp[skillName] = {}; // todo: initialize this
+                globals.exp[skillName].ranks = skillRanks;
+                globals.exp[skillName].rate = skillRate;
+                globals.exp[skillName].pct = skillPct;
+              }
             }
           } catch (err) {
             console.error("Error capturing exp:", err);
