@@ -1,5 +1,6 @@
 "use-strict";
 // Adding a hook into parseText is working well. Hooks can be added and removed.
+// Todo: add fn to trigger when global vars change, same way we did parseText
 
 const utils = require("../utils");
 
@@ -22,9 +23,15 @@ function load(put, globals) {
   }
 
   async function run() {
-    addHook("test", text => console.log("Test sees:", text.substr(0, 10)));
-    await pause(10);
-    removeHook("test");
+    addHook("noSit", text => {
+      if (text.startsWith("You sit")) put("stand");
+    });
+    addHook("autocast", text => {
+      if (text.startsWith("You feel fully prepared")) put("cast");
+    });
+    await pause(30);
+    removeHook("noSit");
+    removeHook("autocast");
     console.log("Hook removed.");
     await pause(10);
   }
@@ -36,7 +43,9 @@ function load(put, globals) {
   }
 
   function parseText(str) {
-    Object.values(parseHooks).forEach(fn => fn(str));
+    if (Object.values && Object.values.length) {
+      Object.values(parseHooks).forEach(fn => fn(str));
+    }
   }
 
   return { run, parseText };
