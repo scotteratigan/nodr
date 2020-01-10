@@ -1,5 +1,7 @@
 "use strict";
 // https://stackoverflow.com/questions/15666144/how-to-remove-module-after-require-in-node-js
+// https://stackoverflow.com/questions/20187184/how-to-kill-childprocess-in-nodejs - investigate this
+// https://medium.com/@NorbertdeLangen/communicating-between-nodejs-processes-4e68be42b917
 
 const path = require("path");
 const fs = require("fs");
